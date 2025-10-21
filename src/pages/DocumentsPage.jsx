@@ -1,108 +1,71 @@
-import { useState, useEffect } from 'react';
-import DocumentList from '../components/documents/DocumentList';
-import DocumentUpload from '../components/documents/DocumentUpload';
-import DocumentSearch from '../components/documents/DocumentSearch';
-import { useNotification } from '../hooks/useNotification';
+import { useState, useEffect } from "react";
+import DocumentList from "../components/documents/DocumentList";
+import DocumentUpload from "../components/documents/DocumentUpload";
+import DocumentSearch from "../components/documents/DocumentSearch";
+import { useNotification } from "../hooks/useNotification";
+import { documentService } from "../services/documentService";
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { showNotification } = useNotification();
 
-  // Load documents on mount
+  // ✅ Load documents when page mounts
   useEffect(() => {
     loadDocuments();
   }, []);
 
+  // ✅ Fetch documents from backend
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // const response = await documentService.getDocuments();
-      // setDocuments(response.data);
-      
-      // Mock data for now
-      setDocuments([
-        {
-          id: '1',
-          name: 'Company Handbook.pdf',
-          file_type: '.pdf',
-          file_size: 2048000,
-          status: 'completed',
-          chunks_count: 45,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          name: 'HR Policies.docx',
-          file_type: '.docx',
-          file_size: 1024000,
-          status: 'completed',
-          chunks_count: 32,
-          created_at: new Date().toISOString()
-        }
-      ]);
+      const response = await documentService.getDocuments();
+      setDocuments(response);
     } catch (error) {
-      showNotification('Failed to load documents', 'error');
+      console.error("Failed to load documents:", error);
+      showNotification("Failed to load documents", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ✅ Upload new documents
   const handleUpload = async (files) => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // await documentService.uploadDocuments(files);
-      
-      // Mock upload
-      const newDocs = Array.from(files).map((file, idx) => ({
-        id: Date.now() + idx,
-        name: file.name,
-        file_type: file.name.split('.').pop(),
-        file_size: file.size,
-        status: 'processing',
-        chunks_count: 0,
-        created_at: new Date().toISOString()
-      }));
-
-      setDocuments([...newDocs, ...documents]);
-      showNotification(`${files.length} document(s) uploaded successfully`, 'success');
-
-      // Simulate processing
-      setTimeout(() => {
-        setDocuments(prev => 
-          prev.map(doc => 
-            newDocs.find(nd => nd.id === doc.id)
-              ? { ...doc, status: 'completed', chunks_count: Math.floor(Math.random() * 50) + 10 }
-              : doc
-          )
-        );
-      }, 2000);
+      const uploadedDocs = await documentService.uploadDocuments(files);
+      setDocuments((prevDocs) => [...uploadedDocs, ...prevDocs]);
+      showNotification(
+        `${files.length} document(s) uploaded successfully`,
+        "success"
+      );
     } catch (error) {
-      showNotification('Failed to upload documents', 'error');
+      console.error("Upload failed:", error);
+      showNotification("Failed to upload documents", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ✅ Delete a document
   const handleDelete = async (docId) => {
     try {
-      // TODO: Replace with actual API call
-      // await documentService.deleteDocument(docId);
-      
-      setDocuments(documents.filter(doc => doc.id !== docId));
-      showNotification('Document deleted successfully', 'info');
+      await documentService.deleteDocument(docId);
+      setDocuments((docs) => docs.filter((doc) => doc.id !== docId));
+      showNotification("Document deleted successfully", "info");
     } catch (error) {
-      showNotification('Failed to delete document', 'error');
+      console.error("Delete failed:", error);
+      showNotification("Failed to delete document", "error");
     }
   };
 
-  const filteredDocuments = documents.filter(doc =>
+  // ✅ Filter search results
+  const filteredDocuments = documents.filter((doc) =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ✅ UI
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -116,7 +79,9 @@ export default function DocumentsPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <p className="text-2xl font-bold text-blue-600">{documents.length}</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {documents.length}
+              </p>
               <p className="text-xs text-gray-500">Documents</p>
             </div>
           </div>
@@ -127,7 +92,10 @@ export default function DocumentsPage() {
       <DocumentUpload onUpload={handleUpload} isLoading={isLoading} />
 
       {/* Search */}
-      <DocumentSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <DocumentSearch
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
 
       {/* Documents List */}
       <DocumentList

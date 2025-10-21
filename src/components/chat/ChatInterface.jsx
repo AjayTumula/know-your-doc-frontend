@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, Zap, User, Bot, FileText } from 'lucide-react';
 import { useNotification } from '../../hooks/useNotification';
-// import chatService from '../../services/chatService';
+import { chatService } from '../../services/chatService'; // ✅ Real API
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -21,6 +21,7 @@ export default function ChatInterface() {
     'Tell me about our health insurance',
   ];
 
+  // ✅ Real backend query (not mock)
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
 
@@ -31,51 +32,28 @@ export default function ChatInterface() {
       timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual API call
-      // const response = await chatService.askQuestion(inputMessage);
-      
-      // Mock response for now
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const response = await chatService.askQuestion(inputMessage);
+
       const aiMessage = {
         id: Date.now() + 1,
-        text: generateMockResponse(inputMessage),
+        text: response.answer || 'No response generated.',
         sender: 'ai',
         timestamp: new Date().toISOString(),
-        sources: [
-          { document_name: 'Company Handbook.pdf', similarity_score: 0.92 },
-          { document_name: 'HR Policies.docx', similarity_score: 0.87 },
-        ],
+        sources: response.sources || [],
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
-      showNotification('Failed to get response', 'error');
+      console.error('Chat error:', error);
+      showNotification('Failed to get response from backend', 'error');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const generateMockResponse = (question) => {
-    const responses = {
-      leave: "Based on the company handbook, employees are entitled to 15 days of paid leave annually. This includes vacation days and can be carried forward to the next year with manager approval.",
-      expense: "To submit expenses, log into the finance portal and upload receipts within 30 days. All expenses must be pre-approved by your manager.",
-      remote: "Our remote work policy allows employees to work from home up to 3 days per week. You need to coordinate with your team and get approval from your team lead.",
-      insurance: "The company provides comprehensive health insurance covering medical, dental, and vision care. You can add dependents at an additional cost through the HR portal.",
-    };
-
-    const lowerQ = question.toLowerCase();
-    if (lowerQ.includes('leave') || lowerQ.includes('vacation')) return responses.leave;
-    if (lowerQ.includes('expense') || lowerQ.includes('reimburse')) return responses.expense;
-    if (lowerQ.includes('remote') || lowerQ.includes('work from home')) return responses.remote;
-    if (lowerQ.includes('insurance') || lowerQ.includes('health')) return responses.insurance;
-    
-    return "I've analyzed your documents and found relevant information. Based on the company policies, I recommend checking with your HR department for specific details about this topic.";
   };
 
   const handleSuggestedQuestion = (question) => {
@@ -128,15 +106,23 @@ export default function ChatInterface() {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
                 >
-                  <div className={`flex items-start gap-3 max-w-2xl ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div
+                    className={`flex items-start gap-3 max-w-2xl ${
+                      msg.sender === 'user' ? 'flex-row-reverse' : ''
+                    }`}
+                  >
                     {/* Avatar */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      msg.sender === 'user' 
-                        ? 'bg-blue-600' 
-                        : 'bg-gradient-to-r from-purple-600 to-indigo-600'
-                    }`}>
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        msg.sender === 'user'
+                          ? 'bg-blue-600'
+                          : 'bg-gradient-to-r from-purple-600 to-indigo-600'
+                      }`}
+                    >
                       {msg.sender === 'user' ? (
                         <User className="w-5 h-5 text-white" />
                       ) : (
@@ -152,7 +138,13 @@ export default function ChatInterface() {
                           : 'bg-white border border-gray-200'
                       }`}
                     >
-                      <p className={`text-sm ${msg.sender === 'user' ? 'text-white' : 'text-gray-900'}`}>
+                      <p
+                        className={`text-sm ${
+                          msg.sender === 'user'
+                            ? 'text-white'
+                            : 'text-gray-900'
+                        }`}
+                      >
                         {msg.text}
                       </p>
 
@@ -172,9 +164,11 @@ export default function ChatInterface() {
                                 <span className="text-gray-700 flex-1">
                                   {source.document_name}
                                 </span>
-                                <span className="text-gray-500">
-                                  {Math.round(source.similarity_score * 100)}%
-                                </span>
+                                {source.similarity_score && (
+                                  <span className="text-gray-500">
+                                    {Math.round(source.similarity_score * 100)}%
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -216,7 +210,9 @@ export default function ChatInterface() {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
+              onKeyPress={(e) =>
+                e.key === 'Enter' && !isLoading && handleSendMessage()
+              }
               placeholder="Ask a question about your documents..."
               className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               disabled={isLoading}

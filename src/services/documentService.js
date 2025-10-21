@@ -1,9 +1,10 @@
-import api from "./api"; // This should be your axios instance
+// frontend/src/services/documentService.js
+import api from "./api";
 
 export const documentService = {
-  async uploadDocuments(files) {
+  uploadDocuments: async (files) => {
     const formData = new FormData();
-    for (const file of files) {
+    for (let file of files) {
       formData.append("files", file);
     }
 
@@ -12,17 +13,16 @@ export const documentService = {
         "Content-Type": "multipart/form-data",
       },
     });
-
     return response.data;
   },
 
-  async getDocuments() {
+  getDocuments: async () => {
     const response = await api.get("/documents");
     return response.data;
   },
 
-  async deleteDocument(docId) {
-    const response = await api.delete(`/documents/${docId}`);
+  deleteDocument: async (id) => {
+    const response = await api.delete(`/documents/${id}`);
     return response.data;
   },
 };

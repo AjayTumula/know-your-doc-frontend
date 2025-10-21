@@ -1,6 +1,10 @@
-import api from "./api";
+import axios from "axios";
 
-export const askQuestion = async (question) => {
-  const res = await api.post("/chat/ask", { question });
-  return res.data;
+const API_URL = "http://127.0.0.1:8000/chat";
+
+export const chatService = {
+  askQuestion: async (question) => {
+    const response = await axios.post(`${API_URL}/ask`, { question });
+    return response.data;
+  },
 };
