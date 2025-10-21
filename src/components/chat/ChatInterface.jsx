@@ -1,29 +1,236 @@
-import { useState } from "react";
-import ChatInput from "./ChatInput";
-import MessageBubble from "./MessageBubble";
-import { askQuestion } from "../../services/chatService";
+import { useState, useEffect, useRef } from 'react';
+import { Send, Loader2, Zap, User, Bot, FileText } from 'lucide-react';
+import { useNotification } from '../../hooks/useNotification';
+// import chatService from '../../services/chatService';
 
 export default function ChatInterface() {
   const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef(null);
+  const { showNotification } = useNotification();
 
-  const handleSend = async (text) => {
-    const userMsg = { sender: "user", text };
-    setMessages((prev) => [...prev, userMsg]);
-    const res = await askQuestion(text);
-    setMessages((prev) => [
-      ...prev,
-      { sender: "bot", text: res.answer, sources: res.sources },
-    ]);
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const suggestedQuestions = [
+    'What is our leave policy?',
+    'How do I submit expenses?',
+    'What are the remote work guidelines?',
+    'Tell me about our health insurance',
+  ];
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: Date.now(),
+      text: inputMessage,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      // TODO: Replace with actual API call
+      // const response = await chatService.askQuestion(inputMessage);
+      
+      // Mock response for now
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      const aiMessage = {
+        id: Date.now() + 1,
+        text: generateMockResponse(inputMessage),
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        sources: [
+          { document_name: 'Company Handbook.pdf', similarity_score: 0.92 },
+          { document_name: 'HR Policies.docx', similarity_score: 0.87 },
+        ],
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+    } catch (error) {
+      showNotification('Failed to get response', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateMockResponse = (question) => {
+    const responses = {
+      leave: "Based on the company handbook, employees are entitled to 15 days of paid leave annually. This includes vacation days and can be carried forward to the next year with manager approval.",
+      expense: "To submit expenses, log into the finance portal and upload receipts within 30 days. All expenses must be pre-approved by your manager.",
+      remote: "Our remote work policy allows employees to work from home up to 3 days per week. You need to coordinate with your team and get approval from your team lead.",
+      insurance: "The company provides comprehensive health insurance covering medical, dental, and vision care. You can add dependents at an additional cost through the HR portal.",
+    };
+
+    const lowerQ = question.toLowerCase();
+    if (lowerQ.includes('leave') || lowerQ.includes('vacation')) return responses.leave;
+    if (lowerQ.includes('expense') || lowerQ.includes('reimburse')) return responses.expense;
+    if (lowerQ.includes('remote') || lowerQ.includes('work from home')) return responses.remote;
+    if (lowerQ.includes('insurance') || lowerQ.includes('health')) return responses.insurance;
+    
+    return "I've analyzed your documents and found relevant information. Based on the company policies, I recommend checking with your HR department for specific details about this topic.";
+  };
+
+  const handleSuggestedQuestion = (question) => {
+    setInputMessage(question);
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto space-y-3 p-4">
-        {messages.map((m, i) => (
-          <MessageBubble key={i} {...m} />
-        ))}
+    <div className="max-w-5xl mx-auto h-full flex flex-col p-4 sm:p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+            <Bot className="w-6 h-6" />
+            Ask Questions About Your Documents
+          </h2>
+          <p className="text-blue-100 text-sm mt-1">
+            Powered by RAG • AI-assisted knowledge retrieval
+          </p>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+          {messages.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                <Zap className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Start a conversation
+              </h3>
+              <p className="text-gray-600 text-sm mb-6">
+                Ask anything about your uploaded documents
+              </p>
+
+              {/* Suggested Questions */}
+              <div className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
+                {suggestedQuestions.map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestedQuestion(question)}
+                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:border-blue-300 hover:bg-blue-50 transition"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`flex items-start gap-3 max-w-2xl ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      msg.sender === 'user' 
+                        ? 'bg-blue-600' 
+                        : 'bg-gradient-to-r from-purple-600 to-indigo-600'
+                    }`}>
+                      {msg.sender === 'user' ? (
+                        <User className="w-5 h-5 text-white" />
+                      ) : (
+                        <Bot className="w-5 h-5 text-white" />
+                      )}
+                    </div>
+
+                    {/* Message Content */}
+                    <div
+                      className={`rounded-2xl px-4 py-3 shadow-sm ${
+                        msg.sender === 'user'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border border-gray-200'
+                      }`}
+                    >
+                      <p className={`text-sm ${msg.sender === 'user' ? 'text-white' : 'text-gray-900'}`}>
+                        {msg.text}
+                      </p>
+
+                      {/* Sources */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <p className="text-xs text-gray-500 mb-2 font-medium">
+                            Sources:
+                          </p>
+                          <div className="space-y-1">
+                            {msg.sources.map((source, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 text-xs bg-gray-50 px-2 py-1 rounded"
+                              >
+                                <FileText className="w-3 h-3 text-gray-500" />
+                                <span className="text-gray-700 flex-1">
+                                  {source.document_name}
+                                </span>
+                                <span className="text-gray-500">
+                                  {Math.round(source.similarity_score * 100)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="flex items-start gap-3 max-w-2xl">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-r from-purple-600 to-indigo-600">
+                      <Bot className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                        <span className="text-sm text-gray-600">
+                          Analyzing documents...
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="p-4 bg-white border-t border-gray-200">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
+              placeholder="Ask a question about your documents..."
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading || !inputMessage.trim()}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       </div>
-      <ChatInput onSend={handleSend} />
     </div>
   );
 }
